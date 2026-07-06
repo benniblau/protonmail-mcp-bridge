@@ -24,6 +24,16 @@ RUN git clone https://github.com/ProtonMail/proton-bridge.git . \
 RUN sed -i 's/Host = "127.0.0.1"/Host = "0.0.0.0"/' internal/constants/constants.go \
     && grep -q 'Host = "0.0.0.0"' internal/constants/constants.go
 
+# Pre-fetch modules with retries — proxy.golang.org occasionally drops the
+# connection mid-download on large module zips (e.g. google/pprof).
+ENV GOPROXY=https://proxy.golang.org,direct \
+    GOFLAGS=-mod=mod
+RUN for i in 1 2 3 4 5; do \
+        go mod download -x && break; \
+        echo "go mod download failed (attempt $i), retrying in 5s..."; \
+        sleep 5; \
+    done
+
 RUN make build-nogui
 
 # The nogui build emits the `bridge` binary at the repo root. Copy it to a
