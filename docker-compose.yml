@@ -1,0 +1,44 @@
+services:
+  protonmail-bridge:
+    build:
+      context: ./protonmail-bridge
+      args:
+        # Pin the official Proton Bridge release to build from source.
+        BRIDGE_TAG: v3.25.0
+    image: protonmail-bridge-headless:local
+    container_name: protonmail-bridge
+    restart: unless-stopped
+    volumes:
+      # Persists the gpg key, pass store, and bridge session/config so the
+      # login survives restarts. Bootstrapped on first run by entrypoint.sh.
+      - protonmail:/root
+    networks:
+      - mailnet
+    # IMAP/SMTP are reachable only on the private `mailnet`. Uncomment to
+    # expose them to the host (localhost only) for debugging:
+    # ports:
+    #   - "127.0.0.1:1143:1143"
+    #   - "127.0.0.1:1025:1025"
+
+  mcp-server:
+    build:
+      context: ./mcp-server
+    image: protonmail-mcp:local
+    container_name: protonmail-mcp
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      - protonmail-bridge
+    ports:
+      # Published to localhost only — bearer token over plain HTTP is fine
+      # on the loopback/LAN. Change to "8080:8080" to expose on the LAN.
+      - "127.0.0.1:8080:8080"
+    networks:
+      - mailnet
+
+networks:
+  mailnet:
+    driver: bridge
+
+volumes:
+  protonmail:

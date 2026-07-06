@@ -1,0 +1,12 @@
+[project]
+name = "protonmail-mcp"
+version = "0.1.0"
+description = "Streamable-HTTP MCP server exposing Proton Mail via Proton Bridge"
+requires-python = ">=3.11"
+dependencies = [
+    "fastmcp>=2.11",
+    "imap-tools>=1.7",
+]
+
+[tool.setuptools]
+py-modules = ["server", "mail"]
