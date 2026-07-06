@@ -10,7 +10,7 @@ ARG BRIDGE_TAG=v3.25.0
 # Build prerequisites for `make build-nogui` (see BUILDS.md).
 RUN apt-get update && apt-get install -y --no-install-recommends \
         make gcc pkg-config git sed ca-certificates \
-        libsecret-1-dev libglvnd-dev \
+        libsecret-1-dev libglvnd-dev libfido2-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
@@ -39,7 +39,7 @@ FROM debian:bookworm-slim AS runtime
 # gnupg + pass provide the keychain backend the bridge uses on headless
 # Linux; libsecret is needed because the CGO binary links against it.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        gnupg pass ca-certificates libsecret-1-0 \
+        gnupg pass ca-certificates libsecret-1-0 libfido2-1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /out/bridge /usr/local/bin/bridge
