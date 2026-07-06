@@ -10,7 +10,7 @@ ARG BRIDGE_TAG=v3.25.0
 # Build prerequisites for `make build-nogui` (see BUILDS.md).
 RUN apt-get update && apt-get install -y --no-install-recommends \
         make gcc pkg-config git sed ca-certificates \
-        libsecret-1-dev libglvnd-dev libfido2-dev \
+        libsecret-1-dev libglvnd-dev libfido2-dev libcbor-dev libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
