@@ -16,6 +16,13 @@ import mail
 MCP_BEARER_TOKEN = os.environ.get("MCP_BEARER_TOKEN", "")
 MCP_HOST = os.environ.get("MCP_HOST", "0.0.0.0")
 MCP_PORT = int(os.environ.get("MCP_PORT", "8080"))
+# Comma-separated Host allow-list for FastMCP's DNS-rebinding protection,
+# e.g. "10.10.1.224:*,localhost:*". Required when the server is reached over
+# a LAN IP or hostname rather than localhost, otherwise requests get a
+# 421 Misdirected Request. Leave empty to disable the host/origin check
+# entirely (acceptable here — the endpoint is gated by the bearer token and
+# consumed by non-browser clients).
+MCP_ALLOWED_HOSTS = [h.strip() for h in os.environ.get("MCP_ALLOWED_HOSTS", "").split(",") if h.strip()]
 
 if not MCP_BEARER_TOKEN:
     raise SystemExit("MCP_BEARER_TOKEN must be set (see .env).")
@@ -146,4 +153,12 @@ def delete_message(uid: str, folder: str = "INBOX") -> dict:
 
 
 if __name__ == "__main__":
-    mcp.run(transport="http", host=MCP_HOST, port=MCP_PORT)
+    run_kwargs: dict = {"transport": "http", "host": MCP_HOST, "port": MCP_PORT}
+    if MCP_ALLOWED_HOSTS:
+        run_kwargs["allowed_hosts"] = MCP_ALLOWED_HOSTS
+        run_kwargs["allowed_origins"] = [
+            f"{scheme}://{h}" for h in MCP_ALLOWED_HOSTS for scheme in ("http", "https")
+        ]
+    else:
+        run_kwargs["host_origin_protection"] = False
+    mcp.run(**run_kwargs)
