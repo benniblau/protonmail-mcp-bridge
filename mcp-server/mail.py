@@ -46,6 +46,31 @@ def _imap(folder: str = "INBOX"):
         yield mb
 
 
+def _has_surrogates(s: str) -> bool:
+    return any("\ud800" <= c <= "\udfff" for c in s)
+
+
+def _json_safe(obj):
+    """Strip lone UTF-16 surrogates so the value can be UTF-8/JSON encoded.
+
+    Proton Bridge / imap_tools decode some headers and bodies with the
+    ``surrogateescape`` handler (or from a mis-declared charset), yielding
+    strings that contain lone surrogate code points. Those cannot be encoded
+    to UTF-8, which makes FastMCP's JSON serialization raise
+    ``UnicodeEncodeError: surrogates not allowed``. Replace any offending code
+    points with the Unicode replacement character before returning.
+    """
+    if isinstance(obj, str):
+        if _has_surrogates(obj):
+            return obj.encode("utf-8", "replace").decode("utf-8")
+        return obj
+    if isinstance(obj, dict):
+        return {_json_safe(k): _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_json_safe(v) for v in obj]
+    return obj
+
+
 def _summary(msg) -> dict:
     return {
         "uid": msg.uid,
@@ -66,7 +91,7 @@ def _summary(msg) -> dict:
 # --------------------------------------------------------------------------- #
 def list_folders() -> list[dict]:
     with _imap() as mb:
-        return [{"name": f.name, "flags": list(f.flags)} for f in mb.folder.list()]
+        return _json_safe([{"name": f.name, "flags": list(f.flags)} for f in mb.folder.list()])
 
 
 def search_messages(
@@ -97,7 +122,7 @@ def search_messages(
             headers_only=True,
             bulk=True,
         )
-        return [_summary(m) for m in msgs]
+        return _json_safe([_summary(m) for m in msgs])
 
 
 def _fetch_one(mb, uid: str):
@@ -110,7 +135,7 @@ def _fetch_one(mb, uid: str):
 def get_message(uid: str, folder: str = "INBOX") -> dict:
     with _imap(folder) as mb:
         m = _fetch_one(mb, uid)
-        return {
+        return _json_safe({
             **_summary(m),
             "reply_to": list(m.reply_to),
             "bcc": list(m.bcc),
@@ -125,7 +150,7 @@ def get_message(uid: str, folder: str = "INBOX") -> dict:
                 }
                 for a in m.attachments
             ],
-        }
+        })
 
 
 def get_attachment(uid: str, filename: str, folder: str = "INBOX") -> dict:
@@ -133,12 +158,12 @@ def get_attachment(uid: str, filename: str, folder: str = "INBOX") -> dict:
         m = _fetch_one(mb, uid)
         for a in m.attachments:
             if a.filename == filename:
-                return {
+                return _json_safe({
                     "filename": a.filename,
                     "content_type": a.content_type,
                     "size": a.size,
                     "content_base64": base64.b64encode(a.payload).decode("ascii"),
-                }
+                })
         raise ValueError(f"No attachment named {filename!r} on message {uid}")
 
 
@@ -244,7 +269,7 @@ def reply_message(
     )
     recipients = to + (cc or [])
     _smtp_send(msg, recipients)
-    return {"sent": True, "to": recipients, "subject": msg["Subject"]}
+    return _json_safe({"sent": True, "to": recipients, "subject": msg["Subject"]})
 
 
 def forward_message(
@@ -264,7 +289,7 @@ def forward_message(
     )
     msg = _build_message(to, _reply_prefixed(orig.subject, "Fwd:"), quoted, html=html)
     _smtp_send(msg, list(to))
-    return {"sent": True, "to": list(to), "subject": msg["Subject"]}
+    return _json_safe({"sent": True, "to": list(to), "subject": msg["Subject"]})
 
 
 # --------------------------------------------------------------------------- #
