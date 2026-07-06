@@ -36,7 +36,12 @@ verifier = StaticTokenVerifier(
     }
 )
 
-mcp = FastMCP(name="protonmail-mcp", auth=verifier)
+# Stateless HTTP: no per-client session / Mcp-Session-Id. Each request is
+# self-contained. This server is pure request/response mail tools with no
+# subscriptions, sampling, or listChanged streaming, so the stateful session
+# machinery bought nothing — dropping it simplifies clients (no initialize
+# handshake to hold a session) and allows trivial horizontal scaling.
+mcp = FastMCP(name="protonmail-mcp", auth=verifier, stateless_http=True)
 
 
 # --------------------------------------------------------------------------- #
