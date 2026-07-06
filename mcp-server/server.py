@@ -36,12 +36,7 @@ verifier = StaticTokenVerifier(
     }
 )
 
-# Stateless HTTP: no per-client session / Mcp-Session-Id. Each request is
-# self-contained. This server is pure request/response mail tools with no
-# subscriptions, sampling, or listChanged streaming, so the stateful session
-# machinery bought nothing — dropping it simplifies clients (no initialize
-# handshake to hold a session) and allows trivial horizontal scaling.
-mcp = FastMCP(name="protonmail-mcp", auth=verifier, stateless_http=True)
+mcp = FastMCP(name="protonmail-mcp", auth=verifier)
 
 
 # --------------------------------------------------------------------------- #
@@ -158,7 +153,17 @@ def delete_message(uid: str, folder: str = "INBOX") -> dict:
 
 
 if __name__ == "__main__":
-    run_kwargs: dict = {"transport": "http", "host": MCP_HOST, "port": MCP_PORT}
+    # Stateless HTTP: no per-client session / Mcp-Session-Id, each request is
+    # self-contained. This server is pure request/response mail tools with no
+    # subscriptions, sampling, or listChanged streaming, so the stateful session
+    # machinery bought nothing. (This fastmcp version takes stateless_http on
+    # run(), not the FastMCP constructor.)
+    run_kwargs: dict = {
+        "transport": "http",
+        "host": MCP_HOST,
+        "port": MCP_PORT,
+        "stateless_http": True,
+    }
     if MCP_ALLOWED_HOSTS:
         run_kwargs["allowed_hosts"] = MCP_ALLOWED_HOSTS
         run_kwargs["allowed_origins"] = [
