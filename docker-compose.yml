@@ -31,8 +31,10 @@ services:
       - protonmail-bridge
     ports:
       # Published to localhost only — bearer token over plain HTTP is fine
-      # on the loopback/LAN. Change to "8080:8080" to expose on the LAN.
-      - "127.0.0.1:8080:8080"
+      # on the loopback/LAN. MCP_PORT (from .env) drives both the host port
+      # and the port the server listens on. Set MCP_BIND=0.0.0.0 to expose
+      # on the LAN instead of loopback only.
+      - "${MCP_BIND:-127.0.0.1}:${MCP_PORT:-8080}:${MCP_PORT:-8080}"
     networks:
       - mailnet
 
